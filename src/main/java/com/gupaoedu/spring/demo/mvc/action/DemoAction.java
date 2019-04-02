@@ -42,6 +42,10 @@ public class DemoAction {
         }
 
     }
+    @GPRequestMapping("/remove")
+    public void remove(HttpServletRequest req,HttpServletResponse resp,@GPRequestParam("id") Integer id){
+
+    }
 
 
 }
