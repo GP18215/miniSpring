@@ -35,6 +35,9 @@ public class GPDispatcherServlet extends HttpServlet {
             is = this.getClass().getClassLoader().getResourceAsStream("contextConfigLocation");
             configContext.load(is);
             String scanPackage = configContext.getProperty("scanPackage");
+            for(String className : mapping.keySet()){
+
+            }
 
             doScanner(scanPackage);
         }catch (Exception e){
