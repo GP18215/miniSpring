@@ -23,6 +23,7 @@ import java.util.Properties;
 public class GPDispatcherServlet extends HttpServlet {
 
     private Map<String,Object> mapping = new HashMap<String,Object>();
+    private Map<String,Method> handleMapping = new HashMap<String, Method>();
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         this.doPost(req, resp);
@@ -45,12 +46,12 @@ public class GPDispatcherServlet extends HttpServlet {
 
         url = url.replace(contextPath,"").replaceAll("/+","/");
 
-        if(!this.mapping.containsKey(url)){
+        if(!this.handleMapping.containsKey(url)){
             resp.getWriter().write("404 not fond!");
             return;
         }
 
-        Method method = (Method) this.mapping.get(url);
+        Method method = (Method) this.handleMapping.get(url);
 
         Map<String,String[]> params = req.getParameterMap();
 
@@ -87,7 +88,7 @@ public class GPDispatcherServlet extends HttpServlet {
 
                         String url = (baseUrl + "/" + requestMapping.value()).replaceAll("/+","/");
 
-                        mapping.put(url,method);
+                        handleMapping.put(url,method);
                         System.out.println("Mapped "+url+","+method);
                     }
 
