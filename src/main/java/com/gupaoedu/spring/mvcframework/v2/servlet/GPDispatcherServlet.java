@@ -1,8 +1,6 @@
 package com.gupaoedu.spring.mvcframework.v2.servlet;
 
-import com.gupaoedu.spring.mvcframework.annotatoin.GPAutowired;
-import com.gupaoedu.spring.mvcframework.annotatoin.GPController;
-import com.gupaoedu.spring.mvcframework.annotatoin.GPService;
+import com.gupaoedu.spring.mvcframework.annotatoin.*;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -13,6 +11,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.*;
@@ -45,7 +44,81 @@ public class GPDispatcherServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        super.doPost(req, resp);
+        try {
+            doDispatch(req,resp);
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void doDispatch(HttpServletRequest req, HttpServletResponse resp) throws IOException, InvocationTargetException, IllegalAccessException {
+        //绝对路径
+        String url = req.getRequestURI();
+
+        //处理成相对路径
+        String contextPath = req.getContextPath();
+
+        url = url.replaceAll(contextPath,"").replaceAll("/+","/");
+
+        if(!this.handlerMapping.containsKey(url)){
+            resp.getWriter().write("404");
+            return;
+        }
+
+        Method method = this.handlerMapping.get(url);
+
+        //从request拿到url传过来的参数
+
+        Map<String,String[]> params = req.getParameterMap();
+
+        //获取方法的形参列表
+        Class<?>[] parameterTypes = method.getParameterTypes();
+
+        Object[] paramValues = new Object[parameterTypes.length];
+
+        for(int i=0;i<parameterTypes.length;i++){
+            Class parameterType = parameterTypes[i];
+            //不能用instanceof,parameterType是形参不是实参
+            if(parameterType == HttpServletRequest.class){
+                paramValues[i] = req;
+                continue;
+            }else if(parameterType == HttpServletResponse.class){
+                paramValues[i] = resp;
+                continue;
+            }else if(parameterType == String.class){
+                GPRequestParam requestParam = (GPRequestParam) parameterType.getAnnotation(GPRequestParam.class);
+                String paramV = requestParam.value();
+                if(params.containsKey(paramV)){
+                    for (Map.Entry<String, String[]> param : params.entrySet()) {
+                        String value = Arrays.toString(param.getValue());
+                        value = value.replaceAll("\\[|\\]","");
+                        value = value.replaceAll("\\s",",");
+                        paramValues[i] = value;
+
+                    }
+
+                }
+            }
+
+        }
+
+        //通过反射拿到method所在class,拿到class之后再拿到class的className
+        String beanName = toLowerFirstCase(method.getDeclaringClass().getSimpleName());
+        method.invoke(ioc.get(beanName),paramValues);
+    }
+
+    //url传过来的参数都是String类型的，HTTP是基于字符串协议
+    //把字符串转换成其他想要的类型
+    private Object convert(Class<?> type,String value){
+        //如果是int
+        if(Integer.class == type){
+            return Integer.valueOf(value);
+        }
+
+        return value;
+
     }
 
     @Override
@@ -70,7 +143,43 @@ public class GPDispatcherServlet extends HttpServlet {
     }
 
 
+    /**
+     * 保存url和method之间的映射关系
+     */
     private void initHandlerMapping() {
+        if(ioc.isEmpty()){return;};
+
+        for(Map.Entry<String,Object> entry : ioc.entrySet()){
+            Class<?> clazz = entry.getValue().getClass();
+
+            if(!clazz.isAnnotationPresent(GPController.class)){continue;}
+
+            //保存写在类上面的GPRequestMapping("/demo")
+            String baseUrl = "";
+            if(clazz.isAnnotationPresent(GPRequestMapping.class)){
+                GPRequestMapping requestMapping = clazz.getAnnotation(GPRequestMapping.class);
+                baseUrl = requestMapping.value();
+            }
+
+            //获取所有的public方法
+            for(Method method : clazz.getMethods()){
+
+                if(!method.isAnnotationPresent(GPRequestMapping.class)){continue;}
+
+                GPRequestMapping requestMapping = method.getAnnotation(GPRequestMapping.class);
+                // /demo/query
+                String url = ("/"+baseUrl+"/"+requestMapping.value()).replaceAll("/+","/");
+
+                handlerMapping.put(url,method);
+
+                System.out.println("Mapped:"+url+","+method);
+
+            }
+
+
+
+
+        }
     }
 
     /**
@@ -172,13 +281,13 @@ public class GPDispatcherServlet extends HttpServlet {
         File classpath = new File(url.getFile());
         for(File file : classpath.listFiles()){//获取路径下的所有的文件
             if(file.isDirectory()){//如果该文件是文件夹递归调用
-                doScanner(file.getName());
+                doScanner(scanPackage + "." + file.getName());
             }else{
                 if(!file.getName().endsWith(".class")){//判断该文件是不是.class结尾
                     continue;
                 }
                 //完整路径拼接出来并放入list集合中
-                String className = scanPackage+"."+file.getName().replace(".calss","");
+                String className = scanPackage+"."+file.getName().replace(".class","");
                 classNames.add(className);
             }
 
