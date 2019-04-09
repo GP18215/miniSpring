@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -76,6 +77,8 @@ public class GPDispatcherServlet extends HttpServlet {
         //获取方法的形参列表
         Class<?>[] parameterTypes = method.getParameterTypes();
 
+        Annotation[][] an = method.getParameterAnnotations();
+
         Object[] paramValues = new Object[parameterTypes.length];
 
         for(int i=0;i<parameterTypes.length;i++){
@@ -88,8 +91,11 @@ public class GPDispatcherServlet extends HttpServlet {
                 paramValues[i] = resp;
                 continue;
             }else if(parameterType == String.class){
-                GPRequestParam requestParam = (GPRequestParam) parameterType.getAnnotation(GPRequestParam.class);
-                String paramV = requestParam.value();
+
+                //GPRequestParam requestParam = (GPRequestParam) parameterType.getAnnotation(GPRequestParam.class);
+                Annotation requestParam = an[2][0];
+
+                String paramV = ((GPRequestParam)requestParam).value();
                 if(params.containsKey(paramV)){
                     for (Map.Entry<String, String[]> param : params.entrySet()) {
                         String value = Arrays.toString(param.getValue());
@@ -224,6 +230,8 @@ public class GPDispatcherServlet extends HttpServlet {
         try{
             for (String className:classNames){
                 Class<?> clazz = Class.forName(className);
+
+                className = clazz.getSimpleName();
 
                 if(clazz.isAnnotationPresent(GPController.class)){//判断类是否用了GPController注解
                       Object instance =  clazz.newInstance();
