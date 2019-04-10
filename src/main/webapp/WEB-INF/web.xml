@@ -6,7 +6,7 @@
   <display-name>Archetype Created Web Application</display-name>
   <servlet>
       <servlet-name>gpmvc</servlet-name>
-     <servlet-class>com.gupaoedu.spring.mvcframework.v2.servlet.GPDispatcherServlet</servlet-class>
+     <servlet-class>com.gupaoedu.spring.mvcframework.v3.servlet.GPDispatcherServlet</servlet-class>
     <init-param>
       <param-name>contextConfigLocation</param-name>
       <param-value>application.properties</param-value>
